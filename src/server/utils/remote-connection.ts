@@ -293,12 +293,11 @@ export class RemoteConnection extends EventEmitter {
    */
   private async executePM2Command(pm2Args: string): Promise<CommandResult> {
     const commands = [
-      `pm2 ${pm2Args}`,                           // Direct PM2 call
-      `bash -l -c "pm2 ${pm2Args}"`,              // With login shell
-      `~/.npm-global/bin/pm2 ${pm2Args}`,         // Common global npm path
-      `~/node_modules/.bin/pm2 ${pm2Args}`,       // Local node_modules path
-      `/usr/local/bin/pm2 ${pm2Args}`,            // System-wide installation
-      `npx pm2 ${pm2Args}`                        // Using npx as fallback
+      `bash -l -c "pm2 ${pm2Args}"`,                      // With interactive login shell (for nvm)
+      `bash -l -c "~/.npm-global/bin/pm2 ${pm2Args}"`,    // Common global npm path with shell
+      `bash -l -c "~/node_modules/.bin/pm2 ${pm2Args}"`,  // Local node_modules path with shell
+      `bash -l -c "/usr/local/bin/pm2 ${pm2Args}"`,       // System-wide installation with shell
+      `bash -l -c "npx pm2 ${pm2Args}"`                   // Using npx as fallback with shell
     ];
 
     let lastError: any = null;

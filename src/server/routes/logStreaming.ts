@@ -82,7 +82,7 @@ const getRemoteLogStream = async (io: any, connectionId: string, processId: stri
 
   // Get process info to find log paths
   console.log(`Getting process info for: ${processId}`);
-  const processInfoResult = await connection.executeCommand(`pm2 jlist`, false); // Don't use sudo for listing
+  const processInfoResult = await connection.executeCommand(`bash -l -c "pm2 jlist"`, false); // Use bash shell for nvm
   if (processInfoResult.code !== 0) {
     throw new Error(`Failed to get process list: ${processInfoResult.stderr}`);
   }
@@ -109,8 +109,9 @@ const getRemoteLogStream = async (io: any, connectionId: string, processId: stri
     console.log(`Setting up pm2 logs stream for process: ${processName} (ID: ${processId})`);
 
     // Use pm2 logs with --lines 0 --raw to stream only new logs
+    // Use bash login shell to ensure node is available via nvm
     // Use sudo since PM2 processes are running as root
-    const pm2LogsCommand = `pm2 logs ${processId} --lines 0 --raw`;
+    const pm2LogsCommand = `bash -l -c "pm2 logs ${processId} --lines 0 --raw"`;
     console.log(`About to create pm2 log stream with command: ${pm2LogsCommand} (using sudo)`);
 
     const logStream = await connection.createLogStream(pm2LogsCommand, true);
