@@ -193,6 +193,9 @@ export class RemoteConnection extends EventEmitter {
         });
 
         channel.on('close', () => {
+          console.log(`Command result: [exit code: ${exitCode}]`);
+          console.log(`  stdout: ${stdout.trim() || '(empty)'}`);
+          console.log(`  stderr: ${stderr.trim() || '(empty)'}`);
           resolve({
             stdout,
             stderr,
