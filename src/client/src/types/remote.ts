@@ -6,7 +6,6 @@ export interface RemoteConnection {
   username: string;
   connected: boolean;
   isPM2Installed?: boolean;
-  privateKey?: string;
   useSudo?: boolean;
 }
 
@@ -14,9 +13,6 @@ export interface RemoteConnectionConfig {
   host: string;
   port: number;
   username: string;
-  password?: string;
-  privateKey?: string;
-  passphrase?: string;
   name?: string;
   useSudo?: boolean;
 }

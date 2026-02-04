@@ -5,14 +5,11 @@ import { EventEmitter } from 'events';
  * Interface for remote server connection configuration
  */
 export interface RemoteConnectionConfig {
-  host: string;
-  port: number;
-  username: string;
-  password?: string;
-  privateKey?: string;
-  passphrase?: string;
-  name?: string;  // A friendly name for the connection
-  useSudo?: boolean; // Whether to use sudo for privileged commands
+  host: string;              // Hostname or IP
+  port: number;              // SSH port (default: 22)
+  username: string;          // SSH username
+  name?: string;             // A friendly name for the connection
+  useSudo?: boolean;         // Whether to use sudo for privileged commands
 }
 
 /**
@@ -38,20 +35,7 @@ export class RemoteConnection extends EventEmitter {
   public host: string;
   public port: number;
   public username: string;
-  
-  // Getters for secure access to authentication details
-  get hasPassword(): boolean {
-    return !!this.config.password;
-  }
-  
-  get hasPrivateKey(): boolean {
-    return !!this.config.privateKey;
-  }
-  
-  get hasPassphrase(): boolean {
-    return !!this.config.passphrase;
-  }
-  
+
   // Getter for secure config (without sensitive data)
   get secureConfig(): RemoteConnectionConfig {
     return {
@@ -121,22 +105,26 @@ export class RemoteConnection extends EventEmitter {
         keepaliveInterval: 30000
       };
 
-      // Debug output
-      console.log(`Connecting to ${this.config.host}:${this.config.port} as ${this.config.username}`);
-      console.log(`Authentication methods available: ${this.config.password ? 'Password' : 'No password'}, ${this.config.privateKey ? 'Private key' : 'No private key'}`);
-      
-      // Add authentication method
-      if (this.config.privateKey) {
-        connectionConfig.privateKey = this.config.privateKey;
-        if (this.config.passphrase) {
-          connectionConfig.passphrase = this.config.passphrase;
-        }
-      } else if (this.config.password) {
-        connectionConfig.password = this.config.password;
-      } else {
-        console.error('No authentication method provided for', this.config.host);
-        return reject(new Error('No authentication method provided'));
+      console.log(`Connecting to ${this.config.host}:${this.config.port} as ${this.config.username}...`);
+
+      // Auto-discover SSH key from standard locations
+      let privateKey: string;
+      let keyType: string;
+      let keyPath: string;
+
+      try {
+        const { SSHKeyDiscovery } = require('./ssh-key-discovery');
+        const keyInfo = SSHKeyDiscovery.findSystemKey();
+        privateKey = keyInfo.privateKey;
+        keyType = keyInfo.keyType;
+        keyPath = keyInfo.keyPath;
+        console.log(`Using SSH key: ${keyPath} (${keyType})`);
+      } catch (error) {
+        console.error('SSH key discovery failed:', error);
+        return reject(error);
       }
+
+      connectionConfig.privateKey = privateKey;
 
       this.client.connect(connectionConfig);
     });
@@ -174,11 +162,11 @@ export class RemoteConnection extends EventEmitter {
     const useElevatedPrivileges = forceSudo || this.config.useSudo;
     let finalCommand = command;
     
-    // Only apply sudo if it's requested and we have a password
-    if (useElevatedPrivileges && this.config.password) {
-      finalCommand = `echo '${this.config.password}' | sudo -S ${command}`;
+    // Note: sudo support requires passwordless sudo configuration on remote server
+    if (useElevatedPrivileges) {
+      finalCommand = `sudo ${command}`;
     }
-      
+
     console.log(`Executing command: ${useElevatedPrivileges ? '[sudo] ' : ''}${command}`);
 
     return new Promise((resolve, reject) => {
@@ -205,12 +193,6 @@ export class RemoteConnection extends EventEmitter {
         });
 
         channel.on('close', () => {
-          // Remove sudo password from stdout/stderr if present
-          if (useElevatedPrivileges && this.config.password) {
-            stdout = stdout.replace(this.config.password, '[PASSWORD REDACTED]');
-            stderr = stderr.replace(this.config.password, '[PASSWORD REDACTED]');
-          }
-          
           resolve({
             stdout,
             stderr,
@@ -585,14 +567,13 @@ export class RemoteConnection extends EventEmitter {
 
     let finalCommand = command;
     let isInitialized = false;
-    
-    // Apply sudo if requested and we have a password
-    if (useSudo && this.config.useSudo && this.config.password) {
-      // Use echo to pipe the password to sudo for streaming commands
-      finalCommand = `echo '${this.config.password}' | sudo -S ${command}`;
+
+    // Apply sudo if requested (requires passwordless sudo on remote server)
+    if (useSudo && this.config.useSudo) {
+      finalCommand = `sudo ${command}`;
     }
 
-    console.log(`[createLogStream] Executing command: ${finalCommand.replace(this.config.password || '', '[PASSWORD]')}`);
+    console.log(`[createLogStream] Executing command: ${finalCommand}`);
 
     return new Promise((resolve, reject) => {
       this.client.exec(finalCommand, (err: Error | undefined, stream: ClientChannel) => {
@@ -711,15 +692,9 @@ export class RemoteConnectionManager {
       await existingConnection.disconnect();
     }
     
-    // Get the old config to preserve password if not provided in update
-    const oldConfig = existingConnection.getFullConfig();
-    
-    // If password is not provided in the update, keep the old one
+    // Updated config (SSH keys will be auto-discovered)
     const updatedConfig: RemoteConnectionConfig = {
-      ...config,
-      password: config.password || oldConfig.password,
-      privateKey: config.privateKey || oldConfig.privateKey,
-      passphrase: config.passphrase || oldConfig.passphrase
+      ...config
     };
     
     // Create a new connection with updated config
@@ -810,15 +785,20 @@ export class RemoteConnectionManager {
       
       if (config && Array.isArray(config.connections)) {
         // Create connections from saved configs
-        config.connections.forEach((conn: SavedConnectionConfig) => {          const connectionConfig: RemoteConnectionConfig = {
+        config.connections.forEach((conn: any) => {
+          // Migration: Log if old auth fields exist (they will be ignored)
+          if (conn.password) {
+            console.log(`Migrating connection ${conn.name}: removing stored password`);
+          }
+          if (conn.privateKey) {
+            console.log(`Migrating connection ${conn.name}: removing stored private key`);
+          }
+
+          const connectionConfig: RemoteConnectionConfig = {
             name: conn.name,
             host: conn.host,
-            port: conn.port,
+            port: conn.port || 22,
             username: conn.username,
-            // Decrypt sensitive data if it exists
-            password: conn.password ? decrypt(conn.password) : undefined,
-            privateKey: conn.privateKey ? decrypt(conn.privateKey) : undefined,
-            passphrase: conn.passphrase ? decrypt(conn.passphrase) : undefined,
             useSudo: conn.useSudo
           };
           
@@ -847,19 +827,16 @@ export class RemoteConnectionManager {
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
-        // Convert connections map to serializable array with encrypted sensitive data
+        // Convert connections map to serializable array
       const savedConnections = Array.from(this.connections.entries()).map(([id, conn]) => {
-        // Get the original configuration to access sensitive data
+        // Get the original configuration
         const config = conn.getFullConfig();
-          return {
+        return {
           id,
           name: conn.name,
           host: conn.host,
           port: conn.port,
           username: conn.username,
-          password: config.password ? encrypt(config.password) : undefined,
-          privateKey: config.privateKey ? encrypt(config.privateKey) : undefined,
-          passphrase: config.passphrase ? encrypt(config.passphrase) : undefined,
           useSudo: config.useSudo
         };
       });

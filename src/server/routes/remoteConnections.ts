@@ -78,14 +78,8 @@ router.post('/connect', async (req, res) => {
     if (!connectionConfig.port) {
       connectionConfig.port = 22;
     }
-    
-    // Validate authentication method
-    if (!connectionConfig.password && !connectionConfig.privateKey) {
-      return res.status(400).json({
-        success: false,
-        error: 'No authentication method provided (password or privateKey)'
-      });
-    }
+
+    // SSH keys will be auto-discovered from ~/.ssh/id_ed25519 or ~/.ssh/id_rsa
     
     // Create the connection
     const connectionId = remoteConnectionManager.createConnection(connectionConfig);

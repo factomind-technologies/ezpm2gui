@@ -91,8 +91,6 @@ const RemoteConnections: React.FC = () => {
     host: '',
     port: 22,
     username: '',
-    password: '',
-    privateKey: '',
     useSudo: false
   });  useEffect(() => {
     loadConnections();
@@ -364,8 +362,6 @@ const RemoteConnections: React.FC = () => {
           host: '',
           port: 22,
           username: '',
-          password: '',
-          privateKey: '',
           useSudo: false
         });
       } else {
@@ -385,8 +381,6 @@ const RemoteConnections: React.FC = () => {
       host: connection.host,
       port: connection.port,
       username: connection.username,
-      password: '', // Don't pre-fill password for security
-      privateKey: connection.privateKey || '',
       useSudo: connection.useSudo || false
     });
     setOpenDialog(true);
@@ -413,8 +407,6 @@ const RemoteConnections: React.FC = () => {
           host: '',
           port: 22,
           username: '',
-          password: '',
-          privateKey: '',
           useSudo: false
         });
       } else {
@@ -435,8 +427,6 @@ const RemoteConnections: React.FC = () => {
       host: '',
       port: 22,
       username: '',
-      password: '',
-      privateKey: '',
       useSudo: false
     });
   };
@@ -766,26 +756,6 @@ const RemoteConnections: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={connectionForm.password}
-                onChange={(e) => setConnectionForm(prev => ({ ...prev, password: e.target.value }))}
-                placeholder={editingConnection ? "Leave blank to keep existing password" : ""}
-                helperText={editingConnection ? "Leave blank to keep current password" : ""}
-              />
-            </Grid>
-            <Grid item xs={12}>              <TextField
-                fullWidth
-                label="Private Key (optional)"
-                multiline
-                rows={4}
-                value={connectionForm.privateKey}
-                onChange={(e) => setConnectionForm(prev => ({ ...prev, privateKey: e.target.value }))}
-                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-              />
-            </Grid>            <Grid item xs={12}>
               <FormControlLabel
                 control={
                   <Checkbox
