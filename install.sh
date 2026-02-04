@@ -1,23 +1,28 @@
 #!/bin/bash
+set -e
 
+echo "================================================================================"
 echo "Installing client dependencies..."
 cd src/client
-npm install
+pnpm install
 
+echo "================================================================================"
 echo "Building client..."
-npm run build
+pnpm run build
 
+echo "================================================================================"
 echo "Installing server dependencies..."
 cd ../..
-npm install
+pnpm install
 
+echo "================================================================================"
 echo "Building server..."
-npm run build
+pnpm run build
 
 echo ""
 echo "======================================"
 echo "Installation complete!"
 echo ""
 echo "To start the application, run:"
-echo "npm start"
+echo "pnpm start"
 echo "======================================="
