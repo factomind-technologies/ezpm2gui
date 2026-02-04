@@ -145,3 +145,4 @@ ezpm2gui-nginx.conf
 ezpm2gui.service
 update-windows-hosts.ps1
 
+.omc/
