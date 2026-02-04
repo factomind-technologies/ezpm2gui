@@ -29,7 +29,7 @@ export class RemoteConnection extends EventEmitter {
   private config: RemoteConnectionConfig;
   private _isConnected = false;
   public isPM2Installed = false;
-  
+
   // Public properties for connection info
   public name: string;
   public host: string;
@@ -45,7 +45,7 @@ export class RemoteConnection extends EventEmitter {
       username: this.username
     };
   }
-  
+
   // Method to get the full config for use by connection manager
   getFullConfig(): RemoteConnectionConfig {
     return this.config;
@@ -55,14 +55,14 @@ export class RemoteConnection extends EventEmitter {
     super();
     this.client = new Client();
     this.config = config;
-    
+
     // Initialize public properties
     this.name = config.name || config.host;
     this.host = config.host;
     this.port = config.port || 22;
     this.username = config.username;
   }
-  
+
   /**
    * Check if the connection is active
    */
@@ -152,7 +152,7 @@ export class RemoteConnection extends EventEmitter {
    * @param command The command to execute
    * @param forceSudo Whether to force using sudo for this specific command
    */
-  async executeCommand(command: string, forceSudo?: boolean): Promise<CommandResult> {    
+  async executeCommand(command: string, forceSudo?: boolean): Promise<CommandResult> {
     // Connect if not already connected
     if (!this._isConnected) {
       await this.connect();
@@ -161,7 +161,7 @@ export class RemoteConnection extends EventEmitter {
     // Apply sudo if configured or explicitly requested for this command
     const useElevatedPrivileges = forceSudo || this.config.useSudo;
     let finalCommand = command;
-    
+
     // Note: sudo support requires passwordless sudo configuration on remote server
     if (useElevatedPrivileges) {
       finalCommand = `sudo ${command}`;
@@ -339,16 +339,16 @@ export class RemoteConnection extends EventEmitter {
       this.isPM2Installed = true;
 
       const result = await this.executePM2Command('jlist');
-      
+
       // Clean the output to ensure it's valid JSON
       // Sometimes pm2 jlist can include non-JSON data at the beginning or end
       let cleanedOutput = result.stdout.trim();
-      
+
       // Find the beginning of the JSON array
       const startIndex = cleanedOutput.indexOf('[');
       // Find the end of the JSON array
       const endIndex = cleanedOutput.lastIndexOf(']') + 1;
-      
+
       if (startIndex === -1 || endIndex === 0) {
         console.log('Invalid PM2 output format, trying alternative approach');
         // Try using pm2 list --format=json instead
@@ -361,7 +361,7 @@ export class RemoteConnection extends EventEmitter {
 
       try {
         const processList = JSON.parse(cleanedOutput);
-        
+
         // Format process data similar to local PM2 format
         return processList.map((proc: any) => ({
           name: proc.name,
@@ -398,13 +398,13 @@ export class RemoteConnection extends EventEmitter {
    * Format uptime to human readable format
    */  private formatUptime(timestamp: number): string {
     if (!timestamp || isNaN(timestamp)) return 'N/A';
-    
+
     try {
       const uptime = Date.now() - timestamp;
       if (uptime < 0) return 'N/A'; // Invalid timestamp
-      
+
       const seconds = Math.floor(uptime / 1000);
-      
+
       if (seconds < 60) {
         return `${seconds}s`;
       } else if (seconds < 3600) {
@@ -458,7 +458,7 @@ export class RemoteConnection extends EventEmitter {
   async installPM2(): Promise<CommandResult> {
     try {
       console.log('Attempting to install PM2 on remote server...');
-      
+
       // Try different installation methods
       const installCommands = [
         'npm install -g pm2',                     // Standard global install
@@ -467,13 +467,13 @@ export class RemoteConnection extends EventEmitter {
       ];
 
       let lastResult: CommandResult | null = null;
-      
+
       for (const command of installCommands) {
         try {
           const result = await this.executeCommand(command, command.includes('sudo'));
           if (result.code === 0) {
             console.log(`PM2 installed successfully with: ${command}`);
-            
+
             // Verify installation
             const isPM2Installed = await this.checkPM2Installation();
             if (isPM2Installed) {
@@ -527,7 +527,7 @@ export class RemoteConnection extends EventEmitter {
       const memLines = memInfo.stdout.split('\n');
       let totalMemory = 0;
       let freeMemory = 0;
-      
+
       if (memLines.length > 1) {
         const memValues = memLines[1].split(/\s+/);
         if (memValues.length > 6) {
@@ -589,26 +589,26 @@ export class RemoteConnection extends EventEmitter {
         const logEmitter = new EventEmitter();        stream.on('data', (data: Buffer) => {
           const dataStr = data.toString();
           console.log(`[createLogStream] Raw data:`, dataStr);
-          
+
           // Skip the sudo password prompt and initial setup messages
           if (!isInitialized) {
-            if (dataStr.includes('[sudo] password') || 
+            if (dataStr.includes('[sudo] password') ||
                 dataStr.includes('Password:') ||
                 dataStr.trim() === '') {
               return; // Skip initialization messages
             }
             isInitialized = true;
           }
-          
+
           logEmitter.emit('data', dataStr);
         });
 
         stream.stderr?.on('data', (data: Buffer) => {
           const dataStr = data.toString();
           console.log(`[createLogStream] Stderr data:`, dataStr);
-          
+
           // Don't emit stderr data for sudo prompts or permission messages
-          if (!dataStr.includes('[sudo] password') && 
+          if (!dataStr.includes('[sudo] password') &&
               !dataStr.includes('Password:') &&
               !dataStr.includes('Sorry, try again')) {
             logEmitter.emit('data', dataStr);
@@ -650,7 +650,7 @@ export interface SavedConnectionConfig extends RemoteConnectionConfig {
 export class RemoteConnectionManager {
   private connections: Map<string, RemoteConnection> = new Map();
   private configFilePath: string;
-  
+
   constructor() {
     const path = require('path');
     this.configFilePath = path.join(__dirname, '../config/remote-connections.json');
@@ -663,17 +663,17 @@ export class RemoteConnectionManager {
    */
   createConnection(config: RemoteConnectionConfig): string {
     const connectionId = `${config.host}-${config.port}-${config.username}`;
-    
+
     if (this.connections.has(connectionId)) {
       return connectionId;
     }
-    
+
     const connection = new RemoteConnection(config);
     this.connections.set(connectionId, connection);
-    
+
     // Save the updated connections to disk
     this.saveConnectionsToDisk();
-    
+
     return connectionId;
   }
 
@@ -685,30 +685,30 @@ export class RemoteConnectionManager {
    */
   async updateConnection(connectionId: string, config: RemoteConnectionConfig): Promise<boolean> {
     const existingConnection = this.connections.get(connectionId);
-    
+
     if (!existingConnection) {
       return false;
     }
-    
+
     // Close the existing connection if it's active
     if (existingConnection.isConnected()) {
       await existingConnection.disconnect();
     }
-    
+
     // Updated config (SSH keys will be auto-discovered)
     const updatedConfig: RemoteConnectionConfig = {
       ...config
     };
-    
+
     // Create a new connection with updated config
     const newConnection = new RemoteConnection(updatedConfig);
-    
+
     // Replace the old connection with the new one
     this.connections.set(connectionId, newConnection);
-    
+
     // Save the updated connections to disk
     this.saveConnectionsToDisk();
-    
+
     return true;
   }
 
@@ -725,12 +725,12 @@ export class RemoteConnectionManager {
    */
   async closeConnection(connectionId: string): Promise<boolean> {
     const connection = this.connections.get(connectionId);
-    
+
     if (connection) {
       await connection.disconnect();
       return true;
     }
-    
+
     return false;
   }
 
@@ -741,7 +741,7 @@ export class RemoteConnectionManager {
     await Promise.all(closePromises);
     this.connections.clear();
   }
-  
+
   /**
    * Get all connections
    * @returns Map of all connections
@@ -770,22 +770,22 @@ export class RemoteConnectionManager {
       const fs = require('fs');
       const path = require('path');
       const { decrypt } = require('./encryption');
-      
+
       // Ensure the config directory exists
       const configDir = path.dirname(this.configFilePath);
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
-      
+
       // Create the file with default content if it doesn't exist
       if (!fs.existsSync(this.configFilePath)) {
         fs.writeFileSync(this.configFilePath, JSON.stringify({ connections: [] }, null, 2));
       }
-      
+
       // Read the configuration file
       const data = fs.readFileSync(this.configFilePath, 'utf8');
       const config = JSON.parse(data);
-      
+
       if (config && Array.isArray(config.connections)) {
         // Create connections from saved configs
         config.connections.forEach((conn: any) => {
@@ -804,12 +804,12 @@ export class RemoteConnectionManager {
             username: conn.username,
             useSudo: conn.useSudo
           };
-          
+
           // Re-create the connection with the original ID
           const connection = new RemoteConnection(connectionConfig);
           this.connections.set(conn.id, connection);
         });
-        
+
         console.log(`Loaded ${config.connections.length} remote connections from disk`);
       }
     } catch (error) {
@@ -824,7 +824,7 @@ export class RemoteConnectionManager {
       const fs = require('fs');
       const path = require('path');
       const { encrypt } = require('./encryption');
-      
+
       // Ensure the config directory exists
       const configDir = path.dirname(this.configFilePath);
       if (!fs.existsSync(configDir)) {
@@ -843,12 +843,12 @@ export class RemoteConnectionManager {
           useSudo: config.useSudo
         };
       });
-      
+
       // Write to file
-      fs.writeFileSync(this.configFilePath, JSON.stringify({ 
-        connections: savedConnections 
+      fs.writeFileSync(this.configFilePath, JSON.stringify({
+        connections: savedConnections
       }, null, 2));
-      
+
       console.log(`Saved ${savedConnections.length} remote connections to disk`);
     } catch (error) {
       console.error('Error saving remote connections to disk:', error);
