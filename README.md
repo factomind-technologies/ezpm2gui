@@ -159,6 +159,36 @@ ezPM2GUI uses environment variables for configuration:
 - `PORT`: The port to run the server on (default: 3001)
 - `HOST`: The host to bind to (default: localhost)
 
+## Running Behind Nginx Reverse Proxy
+
+If you're running ezPM2GUI behind an nginx reverse proxy, you need to configure nginx to properly handle WebSocket connections for socket.io. Here's a sample nginx configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+The key points for WebSocket support:
+- `proxy_http_version 1.1` - Required for WebSocket connections
+- `proxy_set_header Upgrade $http_upgrade` - Passes WebSocket upgrade header
+- `proxy_set_header Connection 'upgrade'` - Enables connection upgrade
+
+**Important**: ezPM2GUI currently requires a dedicated domain or subdomain (e.g., `pm2.your-domain.com`). It does not support running under a subdirectory path (e.g., `your-domain.com/ezpm2gui/`) due to hardcoded paths in the application components.
+
 ## Load Balancing with PM2
 
 ezPM2GUI provides an easy interface to manage PM2's load balancing capabilities:

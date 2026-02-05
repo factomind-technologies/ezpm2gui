@@ -27,7 +27,10 @@ import {
 } from '@heroicons/react/24/outline';
 
 // Initialize socket connection
-const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:3001');
+// Use relative path for nginx reverse proxy compatibility
+const socket = io(process.env.REACT_APP_API_URL || window.location.origin, {
+  path: '/socket.io'
+});
 
 const App: React.FC = () => {
   // State for process data
